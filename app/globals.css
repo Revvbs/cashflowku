@@ -180,6 +180,28 @@ h1, h2, h3, h4, h5, h6 {
   color: #94A3B8;
 }
 
+.input-modern {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #0F172A;
+  background: #FFFFFF;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  outline: none;
+}
+
+.input-modern:focus {
+  border-color: #4F46E5;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+.input-modern::placeholder {
+  color: #94A3B8;
+}
+
 /* ── Badge Styles ───────────────────────────────────────────── */
 .badge {
   display: inline-flex;
