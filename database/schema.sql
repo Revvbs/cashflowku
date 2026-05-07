@@ -60,7 +60,7 @@ CREATE TABLE transactions (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Budgets (Pro feature)
+-- Budgets
 CREATE TABLE budgets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -68,6 +68,49 @@ CREATE TABLE budgets (
   amount DECIMAL(15,2) NOT NULL,
   period TEXT NOT NULL DEFAULT 'monthly', -- weekly, monthly, yearly
   start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Targets / Savings Goals
+CREATE TABLE IF NOT EXISTS targets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  target_amount DECIMAL(15,2) NOT NULL,
+  current_amount DECIMAL(15,2) DEFAULT 0,
+  deadline DATE,
+  icon VARCHAR(50) DEFAULT 'Target',
+  color VARCHAR(20) DEFAULT '#6366F1',
+  status VARCHAR(20) DEFAULT 'active', -- active, completed, cancelled
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Subscriptions
+CREATE TABLE IF NOT EXISTS subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  amount DECIMAL(15,2) NOT NULL,
+  billing_cycle VARCHAR(20) DEFAULT 'monthly', -- monthly, yearly, weekly
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL,
+  next_billing_date DATE NOT NULL,
+  auto_renew BOOLEAN DEFAULT true,
+  status VARCHAR(20) DEFAULT 'active', -- active, paused, cancelled
+  logo_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Financial Health Score history
+CREATE TABLE IF NOT EXISTS health_scores (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  score INTEGER NOT NULL CHECK (score >= 0 AND score <= 100),
+  breakdown JSONB, -- {savings_rate: 80, budget_adherence: 90, spending_trend: 70, expense_distribution: 85}
+  month DATE NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -79,6 +122,9 @@ CREATE INDEX idx_transactions_date ON transactions(date DESC);
 CREATE INDEX idx_transactions_wallet ON transactions(wallet_id);
 CREATE INDEX idx_transactions_category ON transactions(category_id);
 CREATE INDEX idx_budgets_user ON budgets(user_id);
+CREATE INDEX idx_targets_user ON targets(user_id);
+CREATE INDEX idx_subscriptions_user ON subscriptions(user_id);
+CREATE INDEX idx_health_scores_user ON health_scores(user_id);
 
 -- RLS (Row Level Security)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -86,6 +132,9 @@ ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE targets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE health_scores ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: users can only read/update their own
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
@@ -103,6 +152,15 @@ CREATE POLICY "Users can manage own transactions" ON transactions FOR ALL USING 
 
 -- Budgets: users can only access their own
 CREATE POLICY "Users can manage own budgets" ON budgets FOR ALL USING (auth.uid() = user_id);
+
+-- Targets: users can only access their own
+CREATE POLICY "Users can manage own targets" ON targets FOR ALL USING (auth.uid() = user_id);
+
+-- Subscriptions: users can only access their own
+CREATE POLICY "Users can manage own subscriptions" ON subscriptions FOR ALL USING (auth.uid() = user_id);
+
+-- Health Scores: users can only access their own
+CREATE POLICY "Users can manage own health_scores" ON health_scores FOR ALL USING (auth.uid() = user_id);
 
 -- Function: auto-create profile on signup
 CREATE OR REPLACE FUNCTION handle_new_user()

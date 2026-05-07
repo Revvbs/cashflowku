@@ -12,6 +12,9 @@ import {
   LogOut,
   Menu,
   X,
+  PiggyBank,
+  Repeat,
+  Heart,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -19,6 +22,9 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/transaksi', label: 'Transaksi', icon: ArrowLeftRight },
   { href: '/wallets', label: 'Dompet', icon: Wallet },
+  { href: '/budget', label: 'Budget & Target', icon: PiggyBank },
+  { href: '/subscriptions', label: 'Langganan', icon: Repeat },
+  { href: '/health', label: 'Kesehatan Finansial', icon: Heart },
   { href: '/reports', label: 'Laporan', icon: BarChart3 },
   { href: '/pengaturan', label: 'Pengaturan', icon: Settings },
 ]
