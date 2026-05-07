@@ -14,6 +14,9 @@ import {
   Plus,
   FileBarChart,
   ArrowRight,
+  PiggyBank,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from 'lucide-react'
 import DashboardChart from './chart'
 
@@ -36,12 +39,10 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Date range for this month
   const now = new Date()
   const monthStart = format(startOfMonth(now), 'yyyy-MM-dd')
   const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd')
 
-  // Fetch all data in parallel
   const [transactionsRes, categoryRes, walletRes] = await Promise.all([
     supabase
       .from('transactions')
@@ -61,10 +62,8 @@ export default async function DashboardPage() {
   ])
 
   const transactions = transactionsRes.data ?? []
-  const categories = categoryRes.data ?? []
   const wallets = walletRes.data ?? []
 
-  // Calculate stats
   const totalPemasukan = transactions
     .filter((t) => t.type === 'income')
     .reduce((sum, t) => sum + (t.amount ?? 0), 0)
@@ -74,12 +73,10 @@ export default async function DashboardPage() {
     .reduce((sum, t) => sum + (t.amount ?? 0), 0)
 
   const totalSaldo = wallets.reduce((sum, w) => sum + (w.balance ?? 0), 0)
-  const transaksiCount = transactions.length
+  const savingsRate = totalPemasukan > 0 ? Math.round(((totalPemasukan - totalPengeluaran) / totalPemasukan) * 100) : 0
 
-  // Recent transactions (last 5)
   const recentTransactions = transactions.slice(0, 5)
 
-  // Expense by category for pie chart
   const expenseByCategory: Record<string, number> = {}
   transactions
     .filter((t) => t.type === 'expense')
@@ -98,75 +95,87 @@ export default async function DashboardPage() {
 
   const stats = [
     {
-      label: 'Total Pemasukan',
-      value: formatCurrency(totalPemasukan),
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50',
-    },
-    {
-      label: 'Total Pengeluaran',
-      value: formatCurrency(totalPengeluaran),
-      icon: TrendingDown,
-      color: 'text-rose-600',
-      bg: 'bg-rose-50',
-    },
-    {
-      label: 'Saldo',
+      label: 'Total Saldo',
       value: formatCurrency(totalSaldo),
       icon: Wallet,
-      color: 'text-indigo-600',
-      bg: 'bg-indigo-50',
+      gradient: 'gradient-emerald',
+      iconBg: 'bg-emerald-500/20',
+      iconColor: 'text-emerald-600',
+      change: null,
     },
     {
-      label: 'Transaksi Bulan Ini',
-      value: transaksiCount.toString(),
-      icon: Receipt,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50',
+      label: 'Pemasukan',
+      value: formatCurrency(totalPemasukan),
+      icon: ArrowUpCircle,
+      gradient: 'gradient-blue',
+      iconBg: 'bg-blue-500/20',
+      iconColor: 'text-blue-600',
+      change: null,
+    },
+    {
+      label: 'Pengeluaran',
+      value: formatCurrency(totalPengeluaran),
+      icon: ArrowDownCircle,
+      gradient: 'gradient-rose',
+      iconBg: 'bg-rose-500/20',
+      iconColor: 'text-rose-600',
+      change: null,
+    },
+    {
+      label: 'Rasio Tabungan',
+      value: `${savingsRate}%`,
+      icon: PiggyBank,
+      gradient: 'gradient-purple',
+      iconBg: 'bg-purple-500/20',
+      iconColor: 'text-purple-600',
+      change: savingsRate >= 20 ? 'Baik' : 'Perlu ditingkatkan',
     },
   ]
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">
           Ringkasan keuangan bulan {format(now, 'MMMM yyyy', { locale: localeID })}
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-8">
+        {stats.map((stat, index) => (
           <div
             key={stat.label}
-            className="bg-white rounded-xl border border-gray-200 p-5 flex items-start gap-4"
+            className={`${stat.gradient} rounded-2xl p-5 text-white card-hover animate-fade-in-up`}
+            style={{ animationDelay: `${index * 80}ms` }}
           >
-            <div className={`${stat.bg} p-3 rounded-lg`}>
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white/70 text-xs font-medium">{stat.label}</p>
+              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+                <stat.icon className="w-5 h-5 text-white" />
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">{stat.label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{stat.value}</p>
-            </div>
+            <p className="text-xl sm:text-2xl font-bold">{stat.value}</p>
+            {stat.change && (
+              <p className="text-white/60 text-xs mt-1">{stat.change}</p>
+            )}
           </div>
         ))}
       </div>
 
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-8">
         <Link
           href="/transaksi?action=tambah"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 gradient-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all shadow-lg shadow-indigo-200"
         >
           <Plus className="w-4 h-4" />
           Tambah Transaksi
         </Link>
         <Link
-          href="/laporan"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
+          href="/reports"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors"
         >
           <FileBarChart className="w-4 h-4" />
           Lihat Laporan
@@ -176,39 +185,49 @@ export default async function DashboardPage() {
       {hasTransactions ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Transactions */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <h2 className="text-base font-semibold text-gray-900">Transaksi Terakhir</h2>
               <Link
                 href="/transaksi"
-                className="inline-flex items-center gap-1 text-sm text-indigo-600 font-medium hover:text-indigo-700"
+                className="inline-flex items-center gap-1 text-sm text-indigo-600 font-medium hover:text-indigo-700 transition-colors"
               >
                 Lihat Semua
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-50">
               {recentTransactions.map((t) => {
                 const catName = (t as any).categories?.name ?? 'Lainnya'
+                const catColor = (t as any).categories?.color ?? '#6b7280'
                 const walletName = (t as any).wallets?.name ?? '-'
                 const isIncome = t.type === 'income'
                 return (
-                  <div key={t.id} className="flex items-center gap-4 px-5 py-3.5">
+                  <div key={t.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition-colors">
                     <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-                        isIncome ? 'bg-emerald-50' : 'bg-rose-50'
-                      }`}
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${catColor}15` }}
                     >
-                      {isIncome ? '↑' : '↓'}
+                      {isIncome ? (
+                        <ArrowUpCircle className="w-5 h-5 text-emerald-500" />
+                      ) : (
+                        <ArrowDownCircle className="w-5 h-5 text-rose-500" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {t.description ?? catName}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        {catName} · {walletName} ·{' '}
-                        {t.date ? format(new Date(t.date), 'dd MMM yyyy', { locale: localeID }) : ''}
-                      </p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: catColor }}
+                        />
+                        <p className="text-xs text-gray-400">
+                          {catName} · {walletName} ·{' '}
+                          {t.date ? format(new Date(t.date), 'dd MMM', { locale: localeID }) : ''}
+                        </p>
+                      </div>
                     </div>
                     <p
                       className={`text-sm font-semibold whitespace-nowrap ${
@@ -224,15 +243,15 @@ export default async function DashboardPage() {
           </div>
 
           {/* Pie Chart */}
-          <div className="bg-white rounded-xl border border-gray-200">
-            <div className="px-5 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="px-6 py-5 border-b border-gray-100">
               <h2 className="text-base font-semibold text-gray-900">Pengeluaran per Kategori</h2>
             </div>
             <div className="p-5">
               {pieData.length > 0 ? (
                 <DashboardChart data={pieData} />
               ) : (
-                <p className="text-sm text-gray-500 text-center py-8">
+                <p className="text-sm text-gray-400 text-center py-12">
                   Belum ada pengeluaran bulan ini.
                 </p>
               )}
@@ -240,20 +259,19 @@ export default async function DashboardPage() {
           </div>
         </div>
       ) : (
-        /* Empty State */
-        <div className="bg-white rounded-xl border border-gray-200 p-8 md:p-12 text-center">
-          <div className="mx-auto w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center mb-4">
-            <Receipt className="w-8 h-8 text-indigo-400" />
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 md:p-16 text-center">
+          <div className="mx-auto w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 shadow-lg shadow-indigo-200">
+            <Receipt className="w-8 h-8 text-white" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Belum Ada Transaksi
           </h3>
-          <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">
+          <p className="text-sm text-gray-500 max-w-sm mx-auto mb-8">
             Mulai catat pemasukan dan pengeluaranmu untuk melacak keuangan dengan lebih baik.
           </p>
           <Link
             href="/transaksi?action=tambah"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 gradient-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all shadow-lg shadow-indigo-200"
           >
             <Plus className="w-4 h-4" />
             Tambah Transaksi Pertama

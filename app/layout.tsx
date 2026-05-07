@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="id">
-      <body>{children}</body>
+    <html lang="id" className="font-sans">
+      <body className="font-sans antialiased">{children}</body>
     </html>
   )
 }
