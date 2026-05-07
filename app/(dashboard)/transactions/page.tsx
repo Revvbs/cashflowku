@@ -1,4 +1,6 @@
 
+export const runtime = 'edge'
+
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, parseISO } from 'date-fns'
